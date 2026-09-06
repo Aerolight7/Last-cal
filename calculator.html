@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calculator</title>
+<style>
+  :root {
+    --bg: #1c1c1e;
+    --display-bg: #1c1c1e;
+    --btn: #333336;
+    --btn-light: #a5a5a5;
+    --btn-accent: #ff9500;
+    --text: #ffffff;
+    --text-dark: #000000;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, Helvetica, Arial, sans-serif;
+  }
+  .calc {
+    max-width: 360px;
+    margin: 0 auto;
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 640px;
+  }
+  .display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding: 10px 14px 20px;
+    color: var(--text);
+    word-break: break-all;
+  }
+  .expression {
+    font-size: 16px;
+    color: #8e8e93;
+    min-height: 20px;
+    margin-bottom: 6px;
+  }
+  .result {
+    font-size: 56px;
+    font-weight: 300;
+    line-height: 1.1;
+  }
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  button {
+    border: none;
+    border-radius: 50%;
+    height: 68px;
+    font-size: 26px;
+    color: var(--text);
+    background: var(--btn);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  button:active { filter: brightness(1.3); }
+  button.light {
+    background: var(--btn-light);
+    color: var(--text-dark);
+  }
+  button.accent {
+    background: var(--btn-accent);
+  }
+  button.wide {
+    grid-column: span 2;
+    border-radius: 34px;
+    justify-content: flex-start;
+    padding-left: 26px;
+  }
+</style>
+</head>
+<body>
+
+<div class="calc">
+  <div class="display">
+    <div class="expression" id="expression">&nbsp;</div>
+    <div class="result" id="result">0</div>
+  </div>
+
+  <div class="pad">
+    <button class="light" onclick="clearAll()" id="clearBtn">AC</button>
+    <button class="light" onclick="toggleSign()">±</button>
+    <button class="light" onclick="percent()">%</button>
+    <button class="accent" onclick="chooseOperator('÷')">÷</button>
+
+    <button onclick="inputDigit('7')">7</button>
+    <button onclick="inputDigit('8')">8</button>
+    <button onclick="inputDigit('9')">9</button>
+    <button class="accent" onclick="chooseOperator('×')">×</button>
+
+    <button onclick="inputDigit('4')">4</button>
+    <button onclick="inputDigit('5')">5</button>
+    <button onclick="inputDigit('6')">6</button>
+    <button class="accent" onclick="chooseOperator('−')">−</button>
+
+    <button onclick="inputDigit('1')">1</button>
+    <button onclick="inputDigit('2')">2</button>
+    <button onclick="inputDigit('3')">3</button>
+    <button class="accent" onclick="chooseOperator('+')">+</button>
+
+    <button class="wide" onclick="inputDigit('0')">0</button>
+    <button onclick="inputDecimal()">.</button>
+    <button class="accent" onclick="calculate()">=</button>
+  </div>
+</div>
+
+<script>
+let current = "0";
+let previous = null;
+let operator = null;
+let overwrite = true;
+
+const resultEl = document.getElementById("result");
+const expressionEl = document.getElementById("expression");
+const clearBtn = document.getElementById("clearBtn");
+
+function updateDisplay() {
+  resultEl.textContent = formatNumber(current);
+  if (operator && previous !== null) {
+    expressionEl.textContent = `${formatNumber(previous)} ${operator}`;
+  } else {
+    expressionEl.textContent = "\u00A0";
+  }
+  clearBtn.textContent = current !== "0" || previous !== null ? "C" : "AC";
+}
+
+function formatNumber(numStr) {
+  if (numStr === "Error") return "Error";
+  const num = parseFloat(numStr);
+  if (isNaN(num)) return "0";
+  if (Math.abs(num) >= 1e12 || (Math.abs(num) < 1e-9 && num !== 0)) {
+    return num.toExponential(4);
+  }
+  const parts = numStr.toString().split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join(".");
+}
+
+function inputDigit(d) {
+  if (current === "Error") { current = "0"; overwrite = true; }
+  if (overwrite) {
+    current = d;
+    overwrite = false;
+  } else {
+    if (current.replace("-", "").replace(".", "").length >= 15) return;
+    current = current === "0" ? d : current + d;
+  }
+  updateDisplay();
+}
+
+function inputDecimal() {
+  if (current === "Error") { current = "0"; overwrite = true; }
+  if (overwrite) {
+    current = "0.";
+    overwrite = false;
+    updateDisplay();
+    return;
+  }
+  if (!current.includes(".")) current += ".";
+  updateDisplay();
+}
+
+function toggleSign() {
+  if (current === "Error") return;
+  if (current !== "0") current = current.startsWith("-") ? current.slice(1) : "-" + current;
+  updateDisplay();
+}
+
+function percent() {
+  if (current === "Error") return;
+  current = (parseFloat(current) / 100).toString();
+  updateDisplay();
+}
+
+function chooseOperator(op) {
+  if (current === "Error") return;
+  if (operator !== null && !overwrite) {
+    calculate();
+  }
+  previous = current;
+  operator = op;
+  overwrite = true;
+  updateDisplay();
+}
+
+function calculate() {
+  if (operator === null || previous === null) return;
+  const a = parseFloat(previous);
+  const b = parseFloat(current);
+  let res;
+  switch (operator) {
+    case "+": res = a + b; break;
+    case "−": res = a - b; break;
+    case "×": res = a * b; break;
+    case "÷":
+      if (b === 0) {
+        current = "Error";
+        previous = null;
+        operator = null;
+        overwrite = true;
+        updateDisplay();
+        return;
+      }
+      res = a / b;
+      break;
+    default: return;
+  }
+  res = Math.round((res + Number.EPSILON) * 1e10) / 1e10;
+  current = res.toString();
+  previous = null;
+  operator = null;
+  overwrite = true;
+  updateDisplay();
+}
+
+function clearAll() {
+  current = "0";
+  previous = null;
+  operator = null;
+  overwrite = true;
+  updateDisplay();
+}
+
+// keyboard support
+document.addEventListener("keydown", (e) => {
+  if (e.key >= "0" && e.key <= "9") inputDigit(e.key);
+  else if (e.key === ".") inputDecimal();
+  else if (e.key === "+") chooseOperator("+");
+  else if (e.key === "-") chooseOperator("−");
+  else if (e.key === "*") chooseOperator("×");
+  else if (e.key === "/") { e.preventDefault(); chooseOperator("÷"); }
+  else if (e.key === "Enter" || e.key === "=") calculate();
+  else if (e.key === "Escape") clearAll();
+  else if (e.key === "Backspace") {
+    if (current.length > 1) current = current.slice(0, -1);
+    else current = "0";
+    updateDisplay();
+  }
+});
+
+updateDisplay();
+</script>
+
+</body>
+</html>
